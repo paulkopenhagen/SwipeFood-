@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>FoodSwipe – Alle Kategorien</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #e0e5ec;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      color: #333;
+    }
+
+    h2 {
+      font-size: 28px;
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    input {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: none;
+      box-shadow: inset 2px 2px 5px #c1c6cc, inset -2px -2px 5px #ffffff;
+      margin: 10px;
+      width: 240px;
+      background: #e0e5ec;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 5px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      background: #e0e5ec;
+      box-shadow: 4px 4px 8px #c1c6cc, -4px -4px 8px #ffffff;
+      color: #333;
+      transition: transform 0.2s, box-shadow 0.3s;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: inset 2px 2px 5px #c1c6cc, inset -2px -2px 5px #ffffff;
+    }
+
+    .card {
+      width: 280px;
+      height: 200px;
+      border-radius: 15px;
+      margin-top: 20px;
+      background: #e0e5ec;
+      box-shadow: 8px 8px 16px #c1c6cc, -8px -8px 16px #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+      color: #444;
+    }
+
+    .liked, .recipe {
+      margin-top: 20px;
+      max-width: 340px;
+      text-align: center;
+      background: #e0e5ec;
+      padding: 15px;
+      border-radius: 15px;
+      box-shadow: inset 4px 4px 8px #c1c6cc, inset -4px -4px 8px #ffffff;
+    }
+
+    .buttons button {
+      font-size: 24px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      margin: 10px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      font-size: 16px;
+      margin: 5px 0;
+    }
+  </style>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBPx9BGS8QHoXY6ZE0uVlV7kK78fzpUDd8",
+      authDomain: "foodswipe-bfaa0.firebaseapp.com",
+      projectId: "foodswipe-bfaa0",
+      storageBucket: "foodswipe-bfaa0.appspot.com",
+      messagingSenderId: "246799955528",
+      appId: "1:246799955528:web:82f6f0a4b4c957391cca7d",
+      measurementId: "G-M8436C0X0N"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+  </script>
+
+</head>
+<body>
+
+<h2 id="stepTitle">FoodSwipe – Raumcode eingeben</h2>
+
+<div id="step1">
+  <input type="text" id="roomInput" placeholder="Room-Code" />
+  <button onclick="startGame()">Start</button>
+</div>
+
+<div id="gameArea" style="display:none;">
+  <h3 id="categoryTitle">Kategorie: </h3>
+  <div id="foodCard" class="card">
+    <div id="foodIcon">🍅</div>
+    <div id="foodName">Tomaten</div>
+  </div>
+
+  <div class="buttons">
+    <button onclick="dislike()">👎</button>
+    <button onclick="like()">👍</button>
+  </div>
+
+  <div class="liked">
+    <h3>Gemeinsame Zutaten:</h3>
+    <ul id="commonLikesList"></ul>
+  </div>
+
+  <div class="recipe">
+    <h3>Rezeptvorschlag:</h3>
+    <p id="recipeText"></p>
+  </div>
+</div>
+
+<script>
+  const allFoods = {
+    "Kohlenhydrate": [
+      { name: 'Nudeln', icon: '🍝' },
+      { name: 'Kartoffeln', icon: '🥔' },
+      { name: 'Reis', icon: '🍚' },
+      { name: 'Brot', icon: '🍞' }
+    ],
+    "Fleisch/Fisch": [
+      { name: 'Hähnchen', icon: '🐔' },
+      { name: 'Rindfleisch', icon: '🥩' },
+      { name: 'Lachs', icon: '🐟' },
+      { name: 'Speck', icon: '🥓' }
+    ],
+    "Gemüse": [
+      { name: 'Tomaten', icon: '🍅' },
+      { name: 'Basilikum', icon: '🌿' },
+      { name: 'Zwiebeln', icon: '🧅' },
+      { name: 'Paprika', icon: '🌶️' }
+    ]
+  };
+
+  const categories = ["Kohlenhydrate", "Fleisch/Fisch", "Gemüse"];
+  let categoryIndex = 0;
+  let category = '';
+  let foods = [];
+  let roomCode = '';
+  let playerId = 'player' + Math.floor(Math.random() * 10000);
+  let currentIndex = 0;
+  let likedFoods = [];
+
+  const foodIcon = document.getElementById('foodIcon');
+  const foodName = document.getElementById('foodName');
+  const commonLikesList = document.getElementById('commonLikesList');
+  const recipeText = document.getElementById('recipeText');
+  const gameArea = document.getElementById('gameArea');
+  const stepTitle = document.getElementById('stepTitle');
+  const categoryTitle = document.getElementById('categoryTitle');
+
+  function startGame() {
+    roomCode = document.getElementById('roomInput').value.trim();
+    if (!roomCode) {
+      alert('Bitte Room-Code eingeben!');
+      return;
+    }
+    document.getElementById('step1').style.display = 'none';
+    gameArea.style.display = 'block';
+    nextCategory();
+  }
+
+  function nextCategory() {
+    if (categoryIndex >= categories.length) {
+      saveFinalLikes();
+      return;
+    }
+
+    category = categories[categoryIndex];
+    foods = allFoods[category];
+    currentIndex = 0;
+    likedFoods = [];
+    categoryTitle.textContent = "Kategorie: " + category;
+    showFood(currentIndex);
+  }
+
+  function showFood(index) {
+    const food = foods[index];
+    foodIcon.textContent = food.icon;
+    foodName.textContent = food.name;
+  }
+
+  function like() {
+    likedFoods.push(foods[currentIndex].name);
+    nextFood();
+  }
+
+  function dislike() {
+    nextFood();
+  }
+
+  function nextFood() {
+    currentIndex++;
+    if (currentIndex < foods.length) {
+      showFood(currentIndex);
+    } else {
+      db.collection('rooms').doc(roomCode).collection('likes').doc(playerId).set({
+        [category]: likedFoods
+      }, { merge: true }).then(() => {
+        categoryIndex++;
+        nextCategory();
+      });
+    }
+  }
+
+  function saveFinalLikes() {
+    db.collection('rooms').doc(roomCode).collection('likes').doc(playerId).set({
+      finished: true
+    }, { merge: true }).then(() => {
+      checkForMatch();
+    });
+  }
+
+  function checkForMatch() {
+    db.collection('rooms').doc(roomCode).collection('likes').onSnapshot(snapshot => {
+      const likesData = {};
+      let finishedPlayers = 0;
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.finished) finishedPlayers++;
+        likesData[doc.id] = Object.values(data).flat().filter(v => typeof v === 'string');
+      });
+
+      if (finishedPlayers >= 2) {
+        const playerLikes = Object.values(likesData);
+        const commonLikes = playerLikes[0].filter(food => playerLikes[1].includes(food));
+        const uniqueCommonLikes = [...new Set(commonLikes)];
+        showCommonLikes(uniqueCommonLikes);
+        suggestRecipe(uniqueCommonLikes);
+      }
+    });
+  }
+
+  function showCommonLikes(commonLikes) {
+    commonLikesList.innerHTML = '';
+    if (commonLikes.length === 0) {
+      const li = document.createElement('li');
+      li.textContent = 'Keine gemeinsamen Zutaten.';
+      commonLikesList.appendChild(li);
+    } else {
+      commonLikes.forEach(food => {
+        const li = document.createElement('li');
+        li.textContent = food;
+        commonLikesList.appendChild(li);
+      });
+    }
+  }
+
+  function suggestRecipe(zutaten) {
+    let rezept = 'Keine passende Rezeptidee gefunden.';
+    if (zutaten.includes('Nudeln') && zutaten.includes('Tomaten') && zutaten.includes('Basilikum')) {
+      rezept = 'Pasta mit Tomatensoße & Basilikum.';
+    } else if (zutaten.includes('Kartoffeln') && zutaten.includes('Paprika') && zutaten.includes('Zwiebeln')) {
+      rezept = 'Ofengemüse mit Kartoffeln, Paprika & Zwiebeln.';
+    } else if (zutaten.includes('Hähnchen') && zutaten.includes('Knoblauch') && zutaten.includes('Olivenöl')) {
+      rezept = 'Gebratenes Hähnchen mit Knoblauch in Olivenöl.';
+    } else if (zutaten.length > 0) {
+      rezept = 'Kreative Küche! Nutze deine Zutaten.';
+    }
+    recipeText.textContent = rezept;
+  }
+</script>
+
+</body>
+</html>
